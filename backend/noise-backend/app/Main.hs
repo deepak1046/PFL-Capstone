@@ -8,7 +8,7 @@ import API
 
 main :: IO ()
 main = do
-  dataset <- loadNoiseData "../../dataset/cpcb_noise.csv"
+  dataset <- loadNoiseData "dataset/cpcb_noise.csv"
   let cleaned = cleanData dataset
   let averages = averageByLocation cleaned
   let varianceVal = noiseVariance cleaned
