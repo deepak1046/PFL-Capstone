@@ -22,7 +22,11 @@ async function loadMapData() {
 
     try {
 
-        const baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://my-haskell-backend.onrender.com';
+        // After deploying to Render, update this URL to match your real service URL.
+        const RENDER_URL = "https://noise-backend.onrender.com";
+        const baseUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+          ? 'http://localhost:3000'
+          : RENDER_URL;
         const response = await fetch(`${baseUrl}/noise/average`);
         const data = await response.json();
 

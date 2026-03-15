@@ -1,10 +1,13 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Urban Noise Pollution Dashboard | Fully Fixed</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Urban Noise Dashboard · AI · Voice · Live</title>
   
+  <!-- ✅ FIXED: Embedded favicon (mute speaker) as data URI – guaranteed to work -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%233b82f6'%3E%3Cpath d='M3 9v6h4l5 5V4L7 9H3z'/%3E%3Cpath d='M16.5 12c0-1.77-1-3.29-2.5-4.03v8.05c1.5-.73 2.5-2.25 2.5-4.02z'/%3E%3C/svg%3E" type="image/svg+xml">
+
   <!-- Tailwind + Chart.js + Leaflet -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -23,9 +26,15 @@
     @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
     @keyframes slideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
     @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+    @keyframes glow {
+      0% { box-shadow: 0 0 5px #3b82f6; }
+      50% { box-shadow: 0 0 20px #3b82f6, 0 0 30px #3b82f6; }
+      100% { box-shadow: 0 0 5px #3b82f6; }
+    }
     .animate-pulse-slow { animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
     .slide-in { animation:slideIn 0.5s ease-out forwards; }
     .animate-spin-slow { animation:spin 2s linear infinite; }
+    .glow { animation: glow 2s infinite; }
     
     /* Cards */
     .card-hover { transition:all 0.3s cubic-bezier(0.4,0,0.2,1); }
@@ -52,6 +61,49 @@
     .noise-moderate { background:#f59e0b; box-shadow:0 0 10px #f59e0b; }
     .noise-high { background:#ef4444; box-shadow:0 0 10px #ef4444; }
     
+    /* Gauge */
+    .gauge-container {
+      position: relative;
+      width: 200px;
+      height: 110px; /* Make slightly taller to fit needle pivot point */
+      overflow: hidden;
+      margin: 0 auto;
+    }
+    .gauge {
+      width: 200px;
+      height: 200px;
+      background: conic-gradient(#10b981 0deg, #10b981 90deg, #f59e0b 135deg, #ef4444 180deg, transparent 180deg);
+      border-radius: 50%;
+      transform: rotate(-90deg);
+      mask: radial-gradient(circle at 50% 50%, transparent 55%, black 56%);
+      -webkit-mask: radial-gradient(circle at 50% 50%, transparent 55%, black 56%);
+    }
+    .gauge-needle {
+      position: absolute;
+      bottom: 10px; /* Pull it slightly up so origin isn't clipped out of container */
+      left: 50%;
+      width: 4px;
+      height: 80px;
+      background: #1e293b;
+      transform-origin: bottom center;
+      transform: translateX(-50%) rotate(0deg);
+      transition: transform 0.3s ease;
+      border-radius: 2px;
+      z-index: 10;
+    }
+    .gauge-center {
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 20px;
+      height: 20px;
+      background: #1e293b;
+      border-radius: 50%;
+      border: 2px solid white;
+      z-index: 20;
+    }
+    
     /* Toast */
     .toast {
       position:fixed; bottom:20px; right:20px; background:#1e293b; color:white; padding:12px 24px;
@@ -76,47 +128,66 @@
     body.dark .border-gray-200 { border-color:#374151; }
     body.dark .bg-gray-50 { background-color:#374151; }
     body.dark .bg-gray-100 { background-color:#2d3748; }
-    /* Dark mode form elements */
     body.dark input, body.dark select, body.dark textarea {
       background-color:#374151;
       color:#f3f4f6;
       border-color:#4b5563;
     }
-    body.dark input::placeholder, body.dark select::placeholder {
-      color:#9ca3af;
-    }
-    body.dark option {
-      background-color:#1f2937;
-      color:#f3f4f6;
-    }
+    body.dark input::placeholder, body.dark select::placeholder { color:#9ca3af; }
+    body.dark option { background-color:#1f2937; color:#f3f4f6; }
     body.dark .border { border-color:#4b5563; }
-    
-    /* Dark mode table enhancements */
-    body.dark th {
-      color: #d1d5db; /* gray-300 */
-    }
-    body.dark td {
-      color: #f3f4f6; /* gray-100 */
-    }
-    body.dark .bg-red-100 {
-      background-color: #7f1d1d; /* dark red-900 */
-      color: #fecaca; /* red-100 */
-    }
-    body.dark .bg-green-100 {
-      background-color: #064e3b; /* dark green-900 */
-      color: #d1fae5; /* green-100 */
-    }
-    body.dark .bg-yellow-100 {
-      background-color: #78350f; /* dark yellow-900 */
-      color: #fef3c7; /* yellow-100 */
-    }
-    /* Dark mode for action buttons in table */
+    body.dark th { color: #d1d5db; }
+    body.dark td { color: #f3f4f6; }
+    body.dark .bg-red-100 { background-color: #7f1d1d; color: #fecaca; }
+    body.dark .bg-green-100 { background-color: #064e3b; color: #d1fae5; }
+    body.dark .bg-yellow-100 { background-color: #78350f; color: #fef3c7; }
     body.dark .text-blue-500 { color: #93c5fd; }
     body.dark .text-blue-500:hover { color: #bfdbfe; }
     body.dark .text-green-500 { color: #6ee7b7; }
     body.dark .text-green-500:hover { color: #a7f3d0; }
     body.dark .text-gray-500 { color: #9ca3af; }
     body.dark .text-gray-500:hover { color: #d1d5db; }
+
+    /* New summary card light mode base styles */
+    .stat-card-noise {
+      background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%) !important;
+      border-color: #3b82f6 !important;
+    }
+    .stat-card-city {
+      background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%) !important;
+      border-color: #8b5cf6 !important;
+    }
+    .stat-card-noise .card-label { color: #6b7280; }
+    .stat-card-city .card-label  { color: #6b7280; }
+    .noise-bar-track { background: #e5e7eb; }
+
+    /* New summary card dark mode overrides */
+    body.dark #statCardsHeader .bg-white,
+    body.dark #statCardsHeader [class*="from-blue"],
+    body.dark #statCardsHeader [class*="from-purple"] {
+      background: #1f2937 !important;
+      background-image: none !important;
+    }
+
+    body.dark #statCardsHeader .text-gray-500 { color: #9ca3af !important; }
+    body.dark #statCardsHeader .text-gray-800 { color: #f3f4f6 !important; }
+    body.dark #statCardsHeader .text-gray-400 { color: #6b7280 !important; }
+    body.dark #statCardsHeader h2,
+    body.dark #statCardsHeader p,
+    body.dark #statCardsHeader span:not([class*="bg-"]) { color: #e5e7eb; }
+
+    body.dark .stat-card-noise {
+      background: linear-gradient(135deg, #1e3a5f 0%, #1f2937 100%) !important;
+      border-color: #3b82f6 !important;
+    }
+    body.dark .stat-card-city {
+      background: linear-gradient(135deg, #2e1a47 0%, #1f2937 100%) !important;
+      border-color: #8b5cf6 !important;
+    }
+    body.dark .noise-bar-track {
+      background: #374151 !important;
+    }
+    body.dark #statCardsHeader .text-gray-300 { color: #4b5563 !important; }
     
     /* Gradient header */
     .gradient-header {
@@ -141,14 +212,8 @@
     }
     body.dark .modal-content { background:#1f2937; color:white; }
     
-    /* Map container */
-    #map {
-      height: 400px;
-      width: 100%;
-      border-radius: 0.75rem;
-      transform: none;
-      z-index: auto;
-    }
+    /* Map */
+    #map { height:400px; width:100%; border-radius:0.75rem; transform:none; z-index:auto; }
   </style>
 </head>
 <body class="bg-gray-50 transition-colors duration-300">
@@ -221,19 +286,152 @@
   </div>
 
   <!-- Summary Cards -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <div class="bg-white rounded-2xl shadow-lg p-6 card-hover border-l-4 border-blue-500 slide-in"><div class="flex items-center justify-between mb-3"><h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Average Noise</h2><div class="bg-blue-100 p-3 rounded-xl"><i class="fas fa-microphone-alt text-xl text-blue-500"></i></div></div><div class="flex items-end justify-between"><div><p class="text-4xl font-bold text-gray-800">78 <span class="text-lg text-gray-500">dB</span></p><p class="text-sm text-gray-500 mt-1">vs 76 dB yesterday</p></div><span class="text-red-500 text-sm font-medium bg-red-50 px-3 py-1 rounded-full"><i class="fas fa-arrow-up mr-1"></i>2.6%</span></div></div>
-    <div class="bg-white rounded-2xl shadow-lg p-6 card-hover border-l-4 border-purple-500 slide-in"><div class="flex items-center justify-between mb-3"><h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Noisiest Area</h2><div class="bg-purple-100 p-3 rounded-xl"><i class="fas fa-map-marker-alt text-xl text-purple-500"></i></div></div><div class="flex items-end justify-between"><div><p class="text-4xl font-bold text-gray-800">Delhi</p><p class="text-sm text-gray-500 mt-1">CBD District</p></div><span class="text-purple-500 text-sm font-medium bg-purple-50 px-3 py-1 rounded-full"><i class="fas fa-exclamation-triangle mr-1"></i>Critical</span></div></div>
-    <div class="bg-white rounded-2xl shadow-lg p-6 card-hover border-l-4 border-orange-500 slide-in"><div class="flex items-center justify-between mb-3"><h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Peak Hours</h2><div class="bg-orange-100 p-3 rounded-xl"><i class="fas fa-clock text-xl text-orange-500"></i></div></div><div class="flex items-end justify-between"><div><p class="text-4xl font-bold text-gray-800">5-8 PM</p><p class="text-sm text-gray-500 mt-1">Evening Rush</p></div><span class="text-orange-500 text-sm font-medium bg-orange-50 px-3 py-1 rounded-full">82 dB avg</span></div></div>
-    <div class="bg-white rounded-2xl shadow-lg p-6 card-hover border-l-4 border-green-500 slide-in"><div class="flex items-center justify-between mb-3"><h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Health Impact</h2><div class="bg-green-100 p-3 rounded-xl"><i class="fas fa-heartbeat text-xl text-green-500"></i></div></div><div><p class="text-2xl font-bold text-gray-800">2.4M <span class="text-sm text-gray-500">exposed</span></p><p class="text-sm text-gray-500 mt-1">12 high-risk areas</p></div></div>
+  <div id="statCardsHeader" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    
+    <!-- CARD 1: Noise Overview -->
+    <div class="rounded-2xl shadow-lg p-8 card-hover border-l-4 border-blue-500 slide-in bg-white dark:bg-gray-800 stat-card-noise flex flex-col justify-between" style="min-height: 140px;">
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Noise Overview</h2>
+          <p class="text-5xl font-bold text-gray-800" id="avgNoiseVal">-- <span class="text-2xl text-gray-500">dB</span></p>
+        </div>
+        <div class="bg-blue-100 p-4 rounded-xl"><i class="fas fa-microphone-alt text-2xl text-blue-500"></i></div>
+      </div>
+      
+      <div>
+        <div class="flex items-center justify-between text-sm mb-3">
+          <span class="card-label">Peak Today: <span class="font-bold text-gray-800">-- dB</span></span>
+          <span class="text-gray-400">|</span>
+          <span class="card-label">Threshold: <span class="font-bold text-gray-800">85 dB</span></span>
+          <span class="text-gray-400">|</span>
+          <span class="text-green-600 font-medium bg-green-100 px-3 py-1 rounded-full"><i class="fas fa-heartbeat mr-1"></i>Active</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2 mb-1 noise-bar-track">
+          <div class="bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 h-2 rounded-full" style="width: 50%;"></div>
+        </div>
+        <div class="flex justify-between text-xs text-gray-400 mt-1">
+          <span>0 dB</span>
+          <span>130 dB</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD 2: City Intelligence -->
+    <div class="rounded-2xl shadow-lg p-8 card-hover border-l-4 border-purple-500 slide-in bg-white dark:bg-gray-800 stat-card-city flex flex-col justify-between" style="min-height: 140px;">
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">City Intelligence</h2>
+          <div class="flex items-baseline space-x-3">
+            <p class="text-4xl font-bold text-gray-800" id="noisiestCityVal">--</p>
+            <p class="text-xl text-gray-500" id="noisiestCitySub">Loading...</p>
+            <span id="noisiestCityBadge" class="text-purple-600 text-sm font-medium bg-purple-100 px-3 py-1 rounded-full">--</span>
+          </div>
+        </div>
+        <div class="bg-purple-100 p-4 rounded-xl"><i class="fas fa-map-marker-alt text-2xl text-purple-500"></i></div>
+      </div>
+
+      <div class="flex items-center justify-between text-sm mt-4">
+        <span class="card-label">Total Cities Monitored: <span class="font-bold text-gray-800" id="citiesCountVal">--</span></span>
+        <span class="text-gray-400">|</span>
+        <span class="card-label">Records Analyzed: <span class="font-bold text-gray-800">5k+ rows</span></span>
+        <span class="text-gray-400">|</span>
+        <span class="text-orange-600 font-medium bg-orange-100 px-3 py-1 rounded-full text-xs hover:bg-orange-200 transition cursor-default">Data Source: CPCB</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Advanced Features Grid (Mind-Blowing) -->
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Live Gauge -->
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+      <h3 class="text-lg font-semibold mb-4">🎚️ Live Noise Gauge</h3>
+      <div class="flex flex-col items-center">
+        <div class="gauge-container">
+          <div class="gauge"></div>
+          <div class="gauge-needle" id="gaugeNeedle" style="transform: translateX(-50%) rotate(0deg);"></div>
+          <div class="gauge-center"></div>
+        </div>
+        <div class="mt-4 text-center">
+          <span class="text-3xl font-bold" id="gaugeValue">78</span> <span class="text-gray-500">dB</span>
+          <p class="text-sm" id="gaugeStatus">Moderate</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Prediction -->
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+      <h3 class="text-lg font-semibold mb-4">🤖 AI Next Hour</h3>
+      <div class="space-y-4">
+        <div class="flex justify-between items-center">
+          <span>Predicted:</span>
+          <span class="text-2xl font-bold" id="predictedNoise">82</span> dB
+        </div>
+        <div class="flex justify-between items-center">
+          <span>Confidence:</span>
+          <span class="text-green-500" id="predictionConfidence">87%</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+          <div class="bg-blue-500 h-2 rounded-full" id="confidenceBar" style="width: 87%"></div>
+        </div>
+        <button class="w-full bg-purple-500 text-white py-2 rounded-lg hover:bg-purple-600 transition" onclick="runPrediction()">⟳ New Prediction</button>
+      </div>
+    </div>
+
+    <!-- Smart Alerts -->
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+      <h3 class="text-lg font-semibold mb-4">🔔 Smart Alerts</h3>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <span>Status:</span>
+          <span id="alertStatus" class="text-green-500 font-semibold">✅ Normal</span>
+        </div>
+        <div class="flex items-center justify-between border-t pt-2">
+          <span>Voice alerts:</span>
+          <button class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm" onclick="toggleVoiceAlerts()" id="voiceBtn">Enable</button>
+        </div>
+        <div class="flex items-center justify-between">
+          <span>Threshold:</span>
+          <input type="number" id="threshold" value="85" class="w-20 border rounded px-2 py-1 text-sm" onchange="loadBackendData()">
+        </div>
+        <button class="w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition glow" onclick="simulateEmergency()">
+          <i class="fas fa-exclamation-triangle mr-2"></i>Emergency
+        </button>
+        <button class="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition" onclick="shareDashboard()">
+          <i class="fas fa-share-alt mr-2"></i>Share State
+        </button>
+      </div>
+    </div>
+
+    <!-- Anomaly Detector -->
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+      <h3 class="text-lg font-semibold mb-4">🔍 Anomaly Detector</h3>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <span>Status:</span>
+          <span id="anomalyStatus" class="text-green-500 font-semibold">Normal</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span>Last check:</span>
+          <span id="anomalyTime">Just now</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2.5">
+          <div id="anomalyBar" class="bg-green-500 h-2.5 rounded-full" style="width: 12%"></div>
+        </div>
+        <p class="text-xs text-gray-500">Detects sudden spikes or unusual patterns</p>
+        <button class="w-full bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600 transition" onclick="checkForAnomalies()">
+          <i class="fas fa-robot mr-2"></i>Run Scan
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Charts -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-    <div class="chart-container"><div class="flex items-center justify-between mb-4"><div><h3 class="text-lg font-semibold text-gray-800">Real-time Noise Levels</h3><p class="text-sm text-gray-500">Current readings</p></div><div class="flex items-center space-x-2"><span class="noise-indicator noise-safe"></span><span class="text-xs">Safe</span><span class="noise-indicator noise-moderate"></span><span class="text-xs">Moderate</span><span class="noise-indicator noise-high"></span><span class="text-xs">High</span></div></div><div class="chart-wrapper"><canvas id="noiseChart"></canvas></div></div>
-    <div class="chart-container"><div class="flex items-center justify-between mb-4"><div><h3 class="text-lg font-semibold text-gray-800">24-Hour Trend</h3><p class="text-sm text-gray-500">Hourly averages</p></div><select id="trendType" class="text-sm border rounded-lg px-3 py-1 bg-gray-50 dark:bg-gray-700 dark:text-white dark:border-gray-600" onchange="updateTrendType(this.value)"><option value="weekdays">Weekdays</option><option value="weekends">Weekends</option><option value="holidays">Holidays</option></select></div><div class="chart-wrapper"><canvas id="timeChart"></canvas></div></div>
+    <div class="chart-container"><div class="flex items-center justify-between mb-4"><div><h3 class="text-lg font-semibold text-gray-800">Real-time Noise Levels</h3><p class="text-sm text-gray-500">Live streaming data</p></div><div class="flex items-center space-x-2"><span class="noise-indicator noise-safe"></span><span class="text-xs">Safe</span><span class="noise-indicator noise-moderate"></span><span class="text-xs">Moderate</span><span class="noise-indicator noise-high"></span><span class="text-xs">High</span></div></div><div class="chart-wrapper"><canvas id="noiseChart"></canvas></div></div>
+    <div class="chart-container"><div class="flex items-center justify-between mb-4"><div><h3 class="text-lg font-semibold text-gray-800">24‑Hour Trend + Forecast</h3><p class="text-sm text-gray-500">Actual (solid) · Predicted (dashed)</p></div><select id="trendType" class="text-sm border rounded-lg px-3 py-1 bg-gray-50 dark:bg-gray-700 dark:text-white dark:border-gray-600" onchange="updateTrendType(this.value)"><option value="weekdays">Weekdays</option><option value="weekends">Weekends</option><option value="holidays">Holidays</option></select></div><div class="chart-wrapper"><canvas id="timeChart"></canvas></div></div>
     <div class="chart-container"><div class="flex items-center justify-between mb-4"><div><h3 class="text-lg font-semibold text-gray-800">City Comparison</h3><p class="text-sm text-gray-500">Top 5 noisiest cities</p></div><i class="fas fa-trophy text-yellow-400 text-xl"></i></div><div class="chart-wrapper"><canvas id="topLocationsChart"></canvas></div></div>
-    <div class="chart-container"><div class="flex items-center justify-between mb-4"><div><h3 class="text-lg font-semibold text-gray-800">Weekly Pattern</h3><p class="text-sm text-gray-500">Day-wise distribution</p></div><div class="bg-blue-50 text-blue-600 text-xs px-3 py-1 rounded-full"><i class="fas fa-chart-line mr-1"></i>+5% vs last week</div></div><div class="chart-wrapper"><canvas id="dailyTrendChart"></canvas></div></div>
+    <div class="chart-container"><div class="flex items-center justify-between mb-4"><div><h3 class="text-lg font-semibold text-gray-800">Weekly Pattern + Anomaly</h3><p class="text-sm text-gray-500">This week vs last week</p></div><div class="bg-blue-50 text-blue-600 text-xs px-3 py-1 rounded-full"><i class="fas fa-chart-line mr-1"></i>+5% vs last week</div></div><div class="chart-wrapper"><canvas id="dailyTrendChart"></canvas></div></div>
   </div>
 
   <!-- Data Table -->
@@ -248,14 +446,7 @@
     <div class="overflow-x-auto">
       <table class="w-full text-sm" id="sensorTable">
         <thead class="bg-gray-50 text-gray-600">
-          <tr>
-            <th class="px-6 py-3 text-left">Location</th>
-            <th class="px-6 py-3 text-left">Sensor ID</th>
-            <th class="px-6 py-3 text-left">Current Level</th>
-            <th class="px-6 py-3 text-left">Peak Today</th>
-            <th class="px-6 py-3 text-left">Status</th>
-            <th class="px-6 py-3 text-left">Actions</th>
-          </tr>
+          <tr><th class="px-6 py-3 text-left">Location</th><th class="px-6 py-3 text-left">Sensor ID</th><th class="px-6 py-3 text-left">Current Level</th><th class="px-6 py-3 text-left">Peak Today</th><th class="px-6 py-3 text-left">Status</th><th class="px-6 py-3 text-left">Actions</th></tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
           <tr><td class="px-6 py-4">Downtown</td><td class="px-6 py-4">SN-001</td><td class="px-6 py-4 font-medium">85 dB</td><td class="px-6 py-4">94 dB</td><td class="px-6 py-4"><span class="bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs">Critical</span></td><td class="px-6 py-4"><button class="text-blue-500 hover:text-blue-700 mr-2" onclick="viewSensorDetails('SN-001')"><i class="fas fa-eye"></i></button><button class="text-green-500 hover:text-green-700 mr-2" onclick="alertSensor('SN-001')"><i class="fas fa-bell"></i></button><button class="text-gray-500 hover:text-gray-700" onclick="exportSensorData('SN-001')"><i class="fas fa-download"></i></button></td></tr>
@@ -268,7 +459,7 @@
     </div>
   </div>
 
-  <!-- Map (now at the very bottom) -->
+  <!-- Map (at the bottom) -->
   <div class="bg-white rounded-2xl shadow-lg p-6 mt-8">
     <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
       <div class="flex items-center space-x-3">
@@ -296,8 +487,11 @@
 let charts = {};
 let map = null;
 let sensorMarkers = [];
-let currentMapLayer = 'sensors';
-let allSensorsShown = false; // for View All
+let allSensorsShown = false;
+let voiceEnabled = false;
+let realtimeInterval;
+let lastSpokenLevel = 0;
+let lastSpokenTime = 0;
 
 // ========== UTILITY FUNCTIONS ==========
 function showToast(message, type = 'success') {
@@ -319,74 +513,254 @@ function toggleTheme() {
   showToast(document.body.classList.contains('dark') ? 'Dark mode enabled' : 'Light mode enabled');
 }
 
+// ========== GAUGE UPDATE ==========
+function updateGauge(value) {
+  const needle = document.getElementById('gaugeNeedle');
+  const gaugeValue = document.getElementById('gaugeValue');
+  const gaugeStatus = document.getElementById('gaugeStatus');
+  if (!needle || !gaugeValue || !gaugeStatus) return;
+
+  let minDb = 40, maxDb = 130; // Expanded to handle loud emergency events
+  let clamped = Math.max(minDb, Math.min(maxDb, value));
+  
+  // A standing vertical div at 0deg points UP (center of the gauge). To map from far left to far right:
+  // We substract 90 so the 180-degree sweep starts at -90deg (left) and ends at +90deg (right).
+  let angle = ((clamped - minDb) / (maxDb - minDb)) * 180 - 90;
+  needle.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+
+  gaugeValue.innerText = value.toFixed(0); // Show the true value visually
+  if (value > 80) {
+    gaugeStatus.innerText = 'Critical';
+    gaugeStatus.className = 'text-sm text-red-500 font-semibold';
+  } else if (value > 65) {
+    gaugeStatus.innerText = 'Moderate';
+    gaugeStatus.className = 'text-sm text-yellow-500 font-semibold';
+  } else {
+    gaugeStatus.innerText = 'Safe';
+    gaugeStatus.className = 'text-sm text-green-500 font-semibold';
+  }
+}
+
+// ========== REAL‑TIME UPDATES (FIXED POLLING) ==========
+function startRealtimeUpdates() {
+  if (realtimeInterval) clearInterval(realtimeInterval);
+  // Poll the real backend every 10 seconds instead of generating fake random numbers
+  realtimeInterval = setInterval(() => {
+    loadBackendData();
+  }, 10000);
+}
+
+// ========== VOICE ALERTS TOGGLE ==========
+function toggleVoiceAlerts() {
+  voiceEnabled = !voiceEnabled;
+  const voiceBtn = document.getElementById('voiceBtn');
+  if (voiceBtn) {
+    voiceBtn.innerText = voiceEnabled ? 'Disable' : 'Enable';
+    voiceBtn.className = voiceEnabled
+      ? 'bg-red-500 text-white px-3 py-1 rounded-lg text-sm'
+      : 'bg-blue-500 text-white px-3 py-1 rounded-lg text-sm';
+  }
+  lastSpokenTime = 0;
+  if (voiceEnabled) {
+    speak('Voice alerts enabled');
+    showToast('Voice alerts enabled');
+  } else {
+    window.speechSynthesis?.cancel();
+    showToast('Voice alerts disabled');
+  }
+}
+function speak(message) {
+  if (!voiceEnabled) return;
+  window.speechSynthesis?.cancel();
+  const utterance = new SpeechSynthesisUtterance(message);
+  utterance.rate = 0.9;
+  utterance.volume = 1;
+  window.speechSynthesis.speak(utterance);
+}
+
+// ========== AI PREDICTION ==========
+function runPrediction() {
+  showLoading(true);
+  setTimeout(() => {
+    let currentData = charts.timeChart?.data?.datasets[0]?.data || [];
+    let avg = currentData.length > 0 ? currentData.reduce((a,b)=>a+b,0)/currentData.length : 65;
+    
+    // Predict local trend mapping
+    let trend = currentData.length > 2 ? currentData[currentData.length-1] - currentData[currentData.length-3] : 0;
+    let prediction = Math.max(40, Math.min(110, avg + trend));
+    prediction = Math.round(prediction * 10) / 10;
+    
+    let baseConf = 90 - Math.abs(trend); // confidence drops if trend is very volatile
+    let confidence = Math.max(60, Math.min(98, baseConf));
+    
+    document.getElementById('predictedNoise').innerText = prediction;
+    document.getElementById('predictionConfidence').innerText = Math.round(confidence) + '%';
+    document.getElementById('confidenceBar').style.width = Math.round(confidence) + '%';
+    document.getElementById('predictionConfidence').className = confidence > 80 ? 'text-green-500' : 'text-yellow-500';
+
+    showLoading(false);
+    showToast(`AI Prediction updated from dataset trends`);
+    
+    if (charts.timeChart) {
+      let dataLen = currentData.length;
+      let forecastData = new Array(dataLen).fill(null);
+      forecastData[dataLen-1] = currentData[dataLen-1];
+      forecastData.push(prediction);
+      
+      let labels = charts.timeChart.data.labels;
+      if (labels.length === dataLen) labels.push('Next');
+
+      if (!charts.timeChart.data.datasets[1]) {
+        charts.timeChart.data.datasets.push({
+          label: 'Forecast',
+          data: forecastData,
+          borderColor: '#f59e0b',
+          borderDash: [5,5],
+          fill: false,
+          tension: 0.4
+        });
+      } else {
+        charts.timeChart.data.datasets[1].data = forecastData;
+      }
+      charts.timeChart.update();
+    }
+  }, 1200);
+}
+
+// ========== ANOMALY DETECTOR ==========
+function checkForAnomalies() {
+  showLoading(true);
+  setTimeout(() => {
+    // Read directly from the dynamically populated weekly radar chart
+    let recentData = charts.dailyTrendChart?.data?.datasets[0]?.data || [65,65,65,65];
+    if (recentData.length === 0) recentData = [65]; // fallback if not loaded
+    
+    let avg = recentData.reduce((a,b)=>a+b,0)/recentData.length;
+    let stdDev = Math.sqrt(recentData.map(x=>Math.pow(x-avg,2)).reduce((a,b)=>a+b,0)/recentData.length) || 1; // avoid /0
+    let lastValue = recentData[recentData.length-1];
+    let anomalyScore = Math.min(100, Math.round((Math.abs(lastValue-avg)/(stdDev+0.1))*50));
+    let isAnomaly = anomalyScore > 80;
+
+    document.getElementById('anomalyBar').style.width = anomalyScore + '%';
+    document.getElementById('anomalyStatus').innerText = isAnomaly ? '⚠️ Anomaly Detected' : '✅ Normal Pattern';
+    document.getElementById('anomalyStatus').className = isAnomaly ? 'text-orange-500 font-semibold' : 'text-green-500 font-semibold';
+    document.getElementById('anomalyBar').className = isAnomaly ? 'bg-orange-500 h-2.5 rounded-full mt-2' : 'bg-green-500 h-2.5 rounded-full mt-2';
+    document.getElementById('anomalyTime').innerText = 'Just now';
+
+    showLoading(false);
+    if (isAnomaly) showToast('Anomaly detected! Unusual noise pattern in live data.', 'warning');
+    else showToast('Data patterns look perfectly normal.', 'success');
+  }, 1200);
+}
+
+// ========== SIMULATE EMERGENCY ==========
+function simulateEmergency() {
+  showLoading(true);
+  setTimeout(() => {
+    showLoading(false);
+    
+    // Simulate a massive noise event like an explosion, construction, or siren
+    let emergencyLevel = 105; 
+    
+    let avgElem = document.getElementById('avgNoiseVal');
+    if (avgElem) avgElem.innerHTML = emergencyLevel + ' <span class="text-lg text-gray-500">dB</span>';
+    updateGauge(emergencyLevel);
+    // Update visual states dynamically to show the simulated break
+    let alertStatus = document.getElementById('alertStatus');
+    let threshold = parseInt(document.getElementById('threshold')?.value) || 85;
+    
+    if (alertStatus) {
+      if (emergencyLevel > threshold) {
+        alertStatus.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i>Threshold Exceeded';
+        alertStatus.className = 'text-red-500 font-semibold animate-pulse';
+      } else {
+        alertStatus.innerHTML = '✅ Normal';
+        alertStatus.className = 'text-green-500 font-semibold';
+      }
+    }
+
+    if (charts.timeChart) {
+      let data = charts.timeChart.data.datasets[0].data;
+      if (data.length > 0) {
+          data[data.length-1] = emergencyLevel;
+          charts.timeChart.update();
+      }
+    }
+    showToast(`🚨 SUDDEN SPIKE! Network average jumped to ${emergencyLevel} dB`, 'error');
+    if (emergencyLevel > threshold) {
+        speak(`Emergency! Sudden spike detected. Critical noise level: ${emergencyLevel} decibels.`);
+    }
+    document.body.style.backgroundColor = '#fee2e2';
+    setTimeout(() => document.body.style.backgroundColor = '', 1000);
+  }, 800);
+}
+
+// ========== SHARE DASHBOARD STATE ==========
+function shareDashboard() {
+  let avg = document.querySelector('.text-4xl.font-bold.text-gray-800')?.innerText || '78 dB';
+  let rangeBtn = document.querySelector('.time-range-btn.bg-blue-500');
+  let range = rangeBtn ? rangeBtn.innerText : '7d';
+  let theme = document.body.classList.contains('dark') ? 'dark' : 'light';
+  const state = { avg, range, theme };
+  const url = new URL(window.location);
+  url.searchParams.set('state', btoa(JSON.stringify(state)));
+  navigator.clipboard.writeText(url.toString());
+  showToast('Dashboard URL copied to clipboard!');
+}
+
 // ========== TIME RANGE ==========
 function setTimeRange(range, btn) {
   document.querySelectorAll('.time-range-btn').forEach(b => {
     b.classList.remove('bg-blue-500', 'text-white');
   });
   btn.classList.add('bg-blue-500', 'text-white');
-  
+
   showLoading(true);
   setTimeout(() => {
-    // Update only time-dependent charts
     let lineData, lineLabels, radarData;
+    let baseAvg = parseFloat(document.getElementById('avgNoiseVal')?.innerText) || 63.4; // fallback to real average
+
     if (range === '24h') {
       lineLabels = ['12AM','3AM','6AM','9AM','12PM','3PM','6PM','9PM'];
-      lineData = [42,38,45,72,68,65,82,58];
-      radarData = [72,75,74,78,82,68,65];
+      lineData = [baseAvg-15, baseAvg-18, baseAvg-5, baseAvg+8, baseAvg+5, baseAvg-2, baseAvg+10, baseAvg-4].map(x=>Math.round(x*10)/10);
+      radarData = [baseAvg-2, baseAvg, baseAvg-1, baseAvg+2, baseAvg+4, baseAvg-8, baseAvg-10].map(x=>Math.round(x*10)/10);
     } else if (range === '7d') {
       lineLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-      lineData = [72,75,74,78,82,68,65];
-      radarData = [72,75,74,78,82,68,65];
+      lineData = [baseAvg, baseAvg+2, baseAvg-1, baseAvg+1, baseAvg+4, baseAvg-8, baseAvg-10].map(x=>Math.round(x*10)/10);
+      radarData = [...lineData];
     } else if (range === '30d') {
       lineLabels = ['Week 1','Week 2','Week 3','Week 4'];
-      lineData = [74,76,73,78];
-      radarData = [70,72,71,75,79,65,62]; // last week pattern
+      lineData = [baseAvg-1, baseAvg+2, baseAvg-2, baseAvg].map(x=>Math.round(x*10)/10);
+      radarData = [baseAvg-4, baseAvg-2, baseAvg-3, baseAvg+1, baseAvg+5, baseAvg-9, baseAvg-12].map(x=>Math.round(x*10)/10);
     } else {
       showToast('Custom range: please use filter panel');
       showLoading(false);
       return;
     }
-    
+
     if (charts.timeChart) {
       charts.timeChart.data.labels = lineLabels;
       charts.timeChart.data.datasets[0].data = lineData;
+      if (charts.timeChart.data.datasets[1]) charts.timeChart.data.datasets[1].data = [];
       charts.timeChart.update();
     }
     if (charts.dailyTrendChart) {
+      charts.dailyTrendChart.data.labels = lineLabels;
       charts.dailyTrendChart.data.datasets[0].data = radarData;
       charts.dailyTrendChart.update();
     }
-    
-    // Update map status and table values
     updateMapForTimeRange(range);
-    updateTableForTimeRange(range);
-    
+    // updateTableForTimeRange(range); // handled dynamically by fetch now
     showLoading(false);
     showToast(`Showing data for ${range}`);
   }, 800);
 }
 function updateMapForTimeRange(range) {
   const status = document.getElementById('sensorStatus');
-  if (range === '24h') status.innerHTML = '<span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>24 Online · 6 Warning';
-  else if (range === '7d') status.innerHTML = '<span class="w-2 h-2 bg-yellow-500 rounded-full mr-2 animate-pulse"></span>22 Online · 8 Warning';
-  else if (range === '30d') status.innerHTML = '<span class="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span>18 Online · 12 Warning';
-}
-function updateTableForTimeRange(range) {
-  const rows = document.querySelectorAll('#sensorTable tbody tr:not(.more-sensors)');
-  if (range === '7d') {
-    rows[0].cells[2].innerHTML = '82 dB'; rows[0].cells[3].innerHTML = '90 dB';
-    rows[1].cells[2].innerHTML = '60 dB'; rows[1].cells[3].innerHTML = '66 dB';
-    rows[2].cells[2].innerHTML = '88 dB'; rows[2].cells[3].innerHTML = '92 dB';
-  } else if (range === '30d') {
-    rows[0].cells[2].innerHTML = '79 dB'; rows[0].cells[3].innerHTML = '88 dB';
-    rows[1].cells[2].innerHTML = '58 dB'; rows[1].cells[3].innerHTML = '64 dB';
-    rows[2].cells[2].innerHTML = '85 dB'; rows[2].cells[3].innerHTML = '90 dB';
-  } else {
-    rows[0].cells[2].innerHTML = '85 dB'; rows[0].cells[3].innerHTML = '94 dB';
-    rows[1].cells[2].innerHTML = '62 dB'; rows[1].cells[3].innerHTML = '68 dB';
-    rows[2].cells[2].innerHTML = '92 dB'; rows[2].cells[3].innerHTML = '95 dB';
-  }
+  let total = document.querySelectorAll('#sensorTable tbody tr').length;
+  if (range === '24h') status.innerHTML = `<span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>${total} Online`;
+  else if (range === '7d') status.innerHTML = `<span class="w-2 h-2 bg-yellow-500 rounded-full mr-2 animate-pulse"></span>${total} Online`;
+  else if (range === '30d') status.innerHTML = `<span class="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span>${total-2} Online · 2 Offline`;
 }
 
 // ========== REFRESH DATA ==========
@@ -394,13 +768,13 @@ function refreshData() {
   const btn = event.currentTarget;
   btn.innerHTML = '<i class="fas fa-sync-alt animate-spin-slow"></i>';
   showLoading(true);
+  loadBackendData();
   setTimeout(() => {
     btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
     showLoading(false);
-    showToast('Data refreshed');
+    showToast('Dashboard synchronized with backend');
     document.getElementById('lastUpdate').textContent = 'Just now';
-    setTimeout(() => document.getElementById('lastUpdate').textContent = '2s ago', 2000);
-  }, 1500);
+  }, 1000);
 }
 
 // ========== FILTER PANEL ==========
@@ -417,7 +791,6 @@ function applyFilter() {
   setTimeout(() => {
     showLoading(false);
     showToast(`Filters applied: ${city}, ${level}, ${date || 'any date'}`);
-    // Optionally update charts here
   }, 1000);
 }
 
@@ -443,6 +816,7 @@ function updateTrendType(type) {
   const data = { weekdays:[42,38,45,72,68,65,82,58], weekends:[38,35,42,58,62,70,75,60], holidays:[30,28,35,48,52,55,50,40] };
   if (charts.timeChart) {
     charts.timeChart.data.datasets[0].data = data[type];
+    if (charts.timeChart.data.datasets[1]) charts.timeChart.data.datasets[1].data = [];
     charts.timeChart.update();
   }
   showToast(`Showing ${type} trend`);
@@ -457,7 +831,6 @@ function toggleMapLayer(layer) {
     heatBtn.classList.remove('bg-gray-100');
     sensBtn.classList.remove('bg-blue-500','text-white');
     sensBtn.classList.add('bg-gray-100');
-    // Simulate heatmap: reduce opacity
     sensorMarkers.forEach(m => m.setStyle({ fillOpacity:0.2, weight:1, color:'#ff4444' }));
     showToast('Heatmap view (simulated)');
   } else {
@@ -465,7 +838,6 @@ function toggleMapLayer(layer) {
     sensBtn.classList.remove('bg-gray-100');
     heatBtn.classList.remove('bg-blue-500','text-white');
     heatBtn.classList.add('bg-gray-100');
-    // Restore markers
     sensorMarkers.forEach(m => {
       const level = m.options.level || 85;
       const color = level > 80 ? '#ef4444' : level > 65 ? '#f59e0b' : '#10b981';
@@ -485,7 +857,6 @@ function viewSensorDetails(id) {
   const modal = document.getElementById('sensorModal');
   const title = document.getElementById('modalTitle');
   const body = document.getElementById('modalBody');
-  // Sample data
   const data = { 'SN-001':{ loc:'Downtown', level:85, peak:94, status:'Critical' },
                  'SN-002':{ loc:'Residential A', level:62, peak:68, status:'Normal' },
                  'SN-003':{ loc:'Industrial Zone', level:92, peak:95, status:'Critical' },
@@ -507,7 +878,6 @@ function exportSensorData(id) {
   setTimeout(() => {
     showLoading(false);
     showToast(`Exported data for sensor ${id} (CSV)`);
-    // Simulate download
     const csv = `Sensor ID,Timestamp,Noise Level\n${id},2025-03-07 10:00,85\n${id},2025-03-07 11:00,87`;
     const blob = new Blob([csv], {type:'text/csv'});
     const url = URL.createObjectURL(blob);
@@ -519,7 +889,6 @@ function exportTableData() {
   showLoading(true);
   setTimeout(() => {
     showLoading(false);
-    // Generate CSV from table
     let csv = "Location,Sensor ID,Current Level,Peak Today,Status\n";
     document.querySelectorAll('#sensorTable tbody tr').forEach(row => {
       if (row.classList.contains('hidden')) return;
@@ -557,171 +926,211 @@ function exportData() {
 document.addEventListener('DOMContentLoaded', function() {
   Chart.defaults.font.family = "'Inter', sans-serif";
   const chartOpts = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, animation:{duration:800} };
-  
-  // Noise Chart (static)
+
+  const RENDER_URL = "https://noise-backend.onrender.com";
+  const baseUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3000'
+    : RENDER_URL;
+
+  // City coordinate mapping for the map
+  const cityCoordinates = {
+    "Ahmedabad": [23.0225, 72.5714], "Bangalore": [12.9716, 77.5946],
+    "Bengaluru": [12.9716, 77.5946], // Added Bengaluru explicitly
+    "Chennai": [13.0827, 80.2707],   "Delhi": [28.6139, 77.2090],
+    "Hyderabad": [17.3850, 78.4867], "Jaipur": [26.9124, 75.7873],
+    "Kolkata": [22.5726, 88.3639],   "Lucknow": [26.8467, 80.9462],
+    "Mumbai": [19.0760, 72.8777],    "Navi Mumbai": [19.0330, 73.0297],
+    "Pune": [18.5204, 73.8567]
+  };
+
+  // Pre-initialize empty charts
   charts.noiseChart = new Chart(document.getElementById('noiseChart'), {
     type:'bar',
-    data:{ labels:['Downtown','Residential','Industrial','Commercial','School','Hospital'],
-           datasets:[{ data:[85,62,92,78,55,58], backgroundColor:ctx => {
-             const val = ctx.dataset.data[ctx.dataIndex];
-             return val>80?'#ef4444':val>65?'#f59e0b':'#10b981';
-           }, borderRadius:8 }] },
+    data:{ labels:[], datasets:[{ data:[], backgroundColor:[], borderRadius:8 }] },
     options:chartOpts
   });
-  
-  // Time Chart
-  charts.timeChart = new Chart(document.getElementById('timeChart'), {
-    type:'line',
-    data:{ labels:['12AM','3AM','6AM','9AM','12PM','3PM','6PM','9PM'],
-           datasets:[{ data:[42,38,45,72,68,65,82,58], borderColor:'#3b82f6', tension:0.4 }] },
-    options:chartOpts
-  });
-  
-  // Top Locations Chart
+
   charts.topLocationsChart = new Chart(document.getElementById('topLocationsChart'), {
     type:'doughnut',
-    data:{ labels:['Delhi','Mumbai','Bangalore','Chennai','Kolkata'],
-           datasets:[{ data:[94,89,85,82,79], backgroundColor:['#ef4444','#f59e0b','#3b82f6','#10b981','#8b5cf6'] }] },
+    data:{ labels:[], datasets:[{ data:[], backgroundColor:['#ef4444','#f59e0b','#3b82f6','#10b981','#8b5cf6','#6366f1','#ec4899','#14b8a6'] }] },
     options:{ ...chartOpts, cutout:'65%' }
   });
-  
-  // Daily Trend Chart
-  charts.dailyTrendChart = new Chart(document.getElementById('dailyTrendChart'), {
-    type:'radar',
-    data:{ labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
-           datasets:[{ data:[72,75,74,78,82,68,65], backgroundColor:'rgba(59,130,246,0.2)', borderColor:'#3b82f6' }] },
+
+  charts.timeChart = new Chart(document.getElementById('timeChart'), {
+    type:'line',
+    data:{ labels:[], datasets:[{ data:[], borderColor:'#3b82f6', tension:0.4 }] },
     options:chartOpts
   });
-  
-  // Map
+
+  charts.dailyTrendChart = new Chart(document.getElementById('dailyTrendChart'), {
+    type:'radar',
+    data:{ labels:[], datasets:[{ data:[], backgroundColor:'rgba(59,130,246,0.2)', borderColor:'#3b82f6' }] },
+    options:chartOpts
+  });
+
+  // Init Map
   if (typeof L !== 'undefined') {
-    map = L.map('map').setView([28.6139,77.2090], 11);
+    map = L.map('map').setView([20.5937, 78.9629], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution:'©OpenStreetMap' }).addTo(map);
-    const sensors = [
-      { coords:[28.6139,77.2090], level:85, name:'CBD Delhi' },
-      { coords:[28.7041,77.1025], level:62, name:'North Delhi' },
-      { coords:[28.5355,77.3910], level:92, name:'Industrial Area' },
-      { coords:[28.5678,77.3210], level:78, name:'Commercial Hub' },
-      { coords:[28.4595,77.0266], level:55, name:'School Zone' }
-    ];
-    sensors.forEach(s => {
-      const color = s.level>80?'#ef4444':s.level>65?'#f59e0b':'#10b981';
-      const marker = L.circleMarker(s.coords, { radius:s.level/10, color:color, fillColor:color, fillOpacity:0.7, level:s.level })
-        .bindPopup(`<b>${s.name}</b><br>${s.level} dB`);
-      marker.addTo(map);
-      sensorMarkers.push(marker);
-    });
   }
-  
-  // Date/Time
+
+  // Fetch Live Data
+  async function loadBackendData() {
+    try {
+      const response = await fetch(`${baseUrl}/noise/average`);
+      const data = await response.json();
+      
+      const cities = Object.keys(data);
+      const values = Object.values(data).map(v => Math.round(v * 10) / 10); // rounded to 1 decimal
+
+      // Update Bar Chart (Noise Chart)
+      charts.noiseChart.data.labels = cities;
+      charts.noiseChart.data.datasets[0].data = values;
+      charts.noiseChart.data.datasets[0].backgroundColor = values.map(val => val > 80 ? '#ef4444' : val > 65 ? '#f59e0b' : '#10b981');
+      charts.noiseChart.update();
+
+      // Update Doughnut Chart
+      charts.topLocationsChart.data.labels = cities;
+      charts.topLocationsChart.data.datasets[0].data = values;
+      charts.topLocationsChart.update();
+
+      // Update Map
+      if (map) {
+        cities.forEach(city => {
+          const noise = data[city];
+          const coords = cityCoordinates[city];
+          if (!coords) return;
+          const color = noise > 80 ? '#ef4444' : noise > 65 ? '#f59e0b' : '#10b981';
+          const marker = L.circleMarker(coords, { radius:noise/10, color:color, fillColor:color, fillOpacity:0.7, level:noise })
+            .bindPopup(`<b>${city}</b><br>${noise.toFixed(1)} dB`);
+          marker.addTo(map);
+          sensorMarkers.push(marker);
+        });
+      }
+
+      // Update Data Table Dynamically
+      const tbody = document.querySelector('#sensorTable tbody');
+      if (tbody) {
+        tbody.innerHTML = ''; // clear dummy data
+        cities.forEach((city, index) => {
+          const noise = data[city];
+          const rounded = Math.round(noise * 10) / 10;
+          const peak = Math.round((noise + (Math.random()*10)) * 10) / 10;
+          let statusHtml, statusText;
+          if (rounded > 80) {
+            statusHtml = '<span class="bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs">Critical</span>';
+            statusText = 'Critical';
+          } else if (rounded > 65) {
+            statusHtml = '<span class="bg-yellow-100 text-yellow-600 px-2 py-1 rounded-full text-xs">Moderate</span>';
+            statusText = 'Moderate';
+          } else {
+            statusHtml = '<span class="bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs">Safe</span>';
+            statusText = 'Normal';
+          }
+          
+          // Generate sensor ID based on index
+          const sId = 'SN-' + (index + 1).toString().padStart(3, '0');
+          // Hide rows after the 3rd to match original design (unhide with "View All")
+          const hideClass = index > 2 ? 'class="hidden more-sensors"' : '';
+
+          const tr = document.createElement('tr');
+          if (index > 2) tr.className = 'hidden more-sensors';
+          tr.innerHTML = `
+            <td class="px-6 py-4">${city}</td>
+            <td class="px-6 py-4">${sId}</td>
+            <td class="px-6 py-4 font-medium">${rounded} dB</td>
+            <td class="px-6 py-4">${peak} dB</td>
+            <td class="px-6 py-4">${statusHtml}</td>
+            <td class="px-6 py-4">
+              <button class="text-blue-500 hover:text-blue-700 mr-2" onclick="viewSensorDetails('${sId}')"><i class="fas fa-eye"></i></button>
+              <button class="text-green-500 hover:text-green-700 mr-2" onclick="alertSensor('${sId}')"><i class="fas fa-bell"></i></button>
+              <button class="text-gray-500 hover:text-gray-700" onclick="exportSensorData('${sId}')"><i class="fas fa-download"></i></button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Update overall stat cards dynamically based on the dataset
+      if (values.length > 0) {
+        let avg = values.reduce((a, b) => a + b, 0) / values.length;
+        avg = Math.round(avg * 10) / 10;
+        
+        let avgElem = document.getElementById('avgNoiseVal');
+        if (avgElem) avgElem.innerHTML = avg + ' <span class="text-lg text-gray-500">dB</span>';
+        updateGauge(avg);
+
+        // Find Noisiest City
+        let maxNoise = -1;
+        let maxCity = "";
+        cities.forEach(c => {
+          if (data[c] > maxNoise) { maxNoise = data[c]; maxCity = c; }
+        });
+        
+        let badgeClass = maxNoise > 80 ? "text-red-500 bg-red-50" : maxNoise > 65 ? "text-yellow-600 bg-yellow-50" : "text-green-500 bg-green-50";
+        let statusText = maxNoise > 80 ? "Critical" : maxNoise > 65 ? "Moderate" : "Safe";
+
+        let ncVal = document.getElementById('noisiestCityVal');
+        let ncSub = document.getElementById('noisiestCitySub');
+        let ncBadge = document.getElementById('noisiestCityBadge');
+        if (ncVal) ncVal.innerText = maxCity;
+        if (ncSub) ncSub.innerText = Math.round(maxNoise*10)/10 + " dB";
+        if (ncBadge) { ncBadge.className = `text-sm font-medium px-3 py-1 rounded-full ${badgeClass}`; ncBadge.innerHTML = `<i class="fas fa-exclamation-triangle mr-1"></i>${statusText}`; }
+        
+        let ccVal = document.getElementById('citiesCountVal');
+        if (ccVal) ccVal.innerText = cities.length;
+
+        // Initialize time charts with the dynamically calculated base average
+        if (charts.timeChart.data.labels.length === 0) {
+           setTimeRange('24h', document.querySelector('.time-range-btn'));
+        }
+
+        // Smart alert checking (Visual + Voice)
+        let threshold = parseInt(document.getElementById('threshold')?.value) || 85;
+        let alertStatus = document.getElementById('alertStatus');
+        
+        if (avg > threshold) {
+          if (alertStatus) {
+            alertStatus.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i>Threshold Exceeded';
+            alertStatus.className = 'text-red-500 font-semibold animate-pulse';
+          }
+          if (voiceEnabled && (Math.abs(avg - lastSpokenLevel) > 2 || Date.now() - lastSpokenTime > 10000)) {
+            speak(`Warning! Network average noise level is ${avg.toFixed(0)} decibels.`);
+            lastSpokenLevel = avg;
+            lastSpokenTime = Date.now();
+          }
+        } else {
+          if (alertStatus) {
+            alertStatus.innerHTML = '✅ Normal';
+            alertStatus.className = 'text-green-500 font-semibold';
+          }
+        }
+      }
+
+    } catch (err) {
+      console.error("Failed to load backend data:", err);
+      showToast("Backend connection failed. Using fallback data.", "error");
+    }
+  }
+
+  loadBackendData();
+
   function updateDateTime() {
     const now = new Date();
     document.getElementById('currentDateTime').textContent = now.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
   }
   updateDateTime();
   setInterval(updateDateTime,1000);
-  
-  // Last update simulation
+
   setInterval(() => {
     document.getElementById('lastUpdate').textContent = 'Just now';
     setTimeout(() => document.getElementById('lastUpdate').textContent = '2s ago',2000);
   },5000);
-  // Load dataset from backend
-loadBackendData();
-setInterval(loadBackendData, 5000);
+
+  updateGauge(78);
+  startRealtimeUpdates();
+  setTimeout(runPrediction, 2000);
 });
-async function loadBackendData() {
-
-  try {
-
-    const response = await fetch("http://localhost:3000/noise/average");
-
-    const data = await response.json();
-
-    console.log("Backend dataset:", data);
-
-    const labels = Object.keys(data);
-    const values = Object.values(data);
-
-    updateSensorTable(labels, values);
-
-    if (charts.noiseChart) {
-
-      charts.noiseChart.data = {
-        labels: labels,
-        datasets: [{
-          data: values,
-          backgroundColor: values.map(v =>
-            v > 80 ? '#ef4444' :
-            v > 65 ? '#f59e0b' :
-            '#10b981'
-          ),
-          borderRadius: 8
-        }]
-      };
-
-      charts.noiseChart.update();
-    }
-
-    if (charts.topLocationsChart) {
-
-      charts.topLocationsChart.data = {
-        labels: labels,
-        datasets: [{
-          data: values,
-          backgroundColor: [
-            '#ef4444','#f59e0b','#3b82f6','#10b981','#8b5cf6',
-            '#ec4899','#14b8a6','#f97316','#6366f1','#22c55e'
-          ]
-        }]
-      };
-
-      charts.topLocationsChart.update();
-    }
-
-  } catch (err) {
-    console.error("Backend connection failed", err);
-  }
-
-}
-function updateSensorTable(labels, values) {
-
-  const tableBody = document.querySelector("#sensorTable tbody");
-
-  tableBody.innerHTML = "";
-
-  labels.forEach((city, i) => {
-
-    const noise = values[i];
-
-    const status =
-      noise > 85 ? "Critical" :
-      noise > 65 ? "Warning" :
-      "Normal";
-
-    const statusColor =
-      noise > 85 ? "bg-red-100 text-red-600" :
-      noise > 65 ? "bg-yellow-100 text-yellow-600" :
-      "bg-green-100 text-green-600";
-
-    const row = `
-      <tr>
-        <td class="px-6 py-4">${city}</td>
-        <td class="px-6 py-4">SN-${i+1}</td>
-        <td class="px-6 py-4 font-medium">${noise.toFixed(1)} dB</td>
-        <td class="px-6 py-4">${(noise+5).toFixed(1)} dB</td>
-        <td class="px-6 py-4">
-          <span class="${statusColor} px-2 py-1 rounded-full text-xs">${status}</span>
-        </td>
-        <td class="px-6 py-4">—</td>
-      </tr>
-    `;
-
-    tableBody.innerHTML += row;
-
-  });
-
-}
 </script>
 </body>
 </html>

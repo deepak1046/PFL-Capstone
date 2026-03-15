@@ -1,36 +1,52 @@
-name: noise-backend
+name:    noise-backend
 version: 0.1.0.0
 
+# ---------------------------------------------------------------------------
+# Global dependency — applies to both library AND executable
+# ---------------------------------------------------------------------------
 dependencies:
-- base >= 4.7 && < 5
+  - base >= 4.7 && < 5
 
+# ---------------------------------------------------------------------------
+# Library: all source files in src/
+# ---------------------------------------------------------------------------
 library:
   source-dirs: src
+  ghc-options:
+    - -Wall
+    - -O2
   dependencies:
-  - base >= 4.7 && < 5
-  - http-types
-  - cassava
-  - vector
-  - aeson
-  - scotty
-  - text
-  - containers
-  - time
-  - statistics
-  - bytestring
-  - wai
-  - wai-cors
-
-executables:
-  noise-backend-exe:
-    main: Main.hs
-    source-dirs: app
-    dependencies:
-    - noise-backend
-    - base >= 4.7 && < 5
+    - base        >= 4.7 && < 5
+    - aeson
+    - bytestring
+    - cassava
+    - containers
+    - http-types
+    - scotty
+    - statistics
+    - text
+    - time
+    - vector
     - wai
     - wai-cors
+
+# ---------------------------------------------------------------------------
+# Executable: app/Main.hs
+#
+# The exe intentionally has a minimal dependency list — it only imports from
+# the library (noise-backend) and from base.  All Vector/Map/etc work is done
+# inside the library modules, so we do NOT list vector/containers here.
+# ---------------------------------------------------------------------------
+executables:
+  noise-backend-exe:
+    main:        Main.hs
+    source-dirs: app
+    dependencies:
+      - noise-backend       # our library above
+      - base >= 4.7 && < 5
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N    # use all OS threads
+      - -Wall
+      - -O2
