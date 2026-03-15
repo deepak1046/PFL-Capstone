@@ -1,0 +1,8 @@
+noise-backend.cabal
+tmp_build/
+.stack-work/
+frontend/
+.DS_Store
+*.swp
+*~
+node_modules/
