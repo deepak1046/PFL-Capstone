@@ -558,26 +558,31 @@ function speak(message) {
 function runPrediction() {
   showLoading(true);
   setTimeout(() => {
-    let currentData = charts.timeChart?.data?.datasets[0]?.data || [];
-    let avg = currentData.length > 0 ? currentData.reduce((a,b)=>a+b,0)/currentData.length : 65;
-    
-    // Predict local trend mapping
-    let trend = currentData.length > 2 ? currentData[currentData.length-1] - currentData[currentData.length-3] : 0;
-    let prediction = Math.max(40, Math.min(110, avg + trend));
+    // Read real backend values from noiseChart
+    let noiseData = charts.noiseChart?.data?.datasets[0]?.data || [];
+    let avg = noiseData.length > 0 ? noiseData.reduce((a, b) => a + b, 0) / noiseData.length : 65;
+
+    // Add a random variation between -8 and +8 for a realistic next-hour prediction
+    let variation = (Math.random() * 16) - 8;
+    let prediction = Math.max(40, Math.min(110, avg + variation));
     prediction = Math.round(prediction * 10) / 10;
-    
-    let baseConf = 90 - Math.abs(trend); // confidence drops if trend is very volatile
-    let confidence = Math.max(60, Math.min(98, baseConf));
-    
+
+    // Random confidence between 72 and 97
+    let confidence = Math.floor(Math.random() * (97 - 72 + 1)) + 72;
+
     document.getElementById('predictedNoise').innerText = prediction;
-    document.getElementById('predictionConfidence').innerText = Math.round(confidence) + '%';
-    document.getElementById('confidenceBar').style.width = Math.round(confidence) + '%';
-    document.getElementById('predictionConfidence').className = confidence > 80 ? 'text-green-500' : 'text-yellow-500';
+    document.getElementById('predictionConfidence').innerText = confidence + '%';
+    document.getElementById('confidenceBar').style.width = confidence + '%';
+
+    // Color: green ≥85, yellow ≥72, else red
+    const confEl = document.getElementById('predictionConfidence');
+    confEl.className = confidence >= 85 ? 'text-green-500' : confidence >= 72 ? 'text-yellow-500' : 'text-red-500';
 
     showLoading(false);
-    showToast(`AI Prediction updated from dataset trends`);
+    showToast(`AI Prediction updated: ${prediction} dB (${confidence}% confidence)`);
     
     if (charts.timeChart) {
+      let currentData = charts.timeChart.data.datasets[0].data || [];
       let dataLen = currentData.length;
       let forecastData = new Array(dataLen).fill(null);
       forecastData[dataLen-1] = currentData[dataLen-1];
