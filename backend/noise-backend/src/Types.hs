@@ -28,8 +28,8 @@ data NoiseRecord = NoiseRecord
 
 instance ToJSON NoiseRecord
 
--- | Helper to parse empty string "" as 0.0, or try normal Double parse.
---   Cassava's default behavior fails on empty strings for numeric fields.
+-- | Helper to parse empty string "" as 0.0, or try normal Double parse
+--   Cassava's default behavior fails on empty strings for numeric fields
 instance FromNamedRecord NoiseRecord where
   parseNamedRecord r =
     NoiseRecord
